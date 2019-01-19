@@ -1,9 +1,10 @@
-// Store API query url
+// Store API query urls
 var earthquakeUrl = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson";
 // "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_month.geojson"; 
 var plateUrl = "https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json";
 
 // function to change size of circle to be proportional to magnitude by a factor of 50,000
+// reference getSize from heatmap Activity 17:2:2
 function circleSize(magnitude) {return magnitude * 10000;};
 
 // https://leafletjs.com/examples/choropleth/ 
@@ -16,7 +17,6 @@ function circleSize(magnitude) {return magnitude * 10000;};
     d > 1 ? "#e1f34d":
              "#b7f34d";
   }
-
 // Note: Reference Activity 17:1:10
 // Perform a GET request to the query URL
 d3.json(earthquakeUrl, function(data) {
@@ -34,6 +34,7 @@ function createFeatures(earthquakeData) {
       layer.bindPopup("<h3>Location: " + feature.properties.place + "</h3><hr>" + "<h3>Magnitude: " + feature.properties.mag + "</h3><hr>" + "<h3>Time: " + new Date(feature.properties.time) + "</h3>");
      }, 
      // add location layer with circle size and color related to magnitude  
+     // reference activity 17:1:9 for general circle setup then use functions
      pointToLayer: function (feature, latlng) {
       return new L.circle(latlng, 
       {radius: circleSize(feature.properties.mag),
@@ -49,7 +50,7 @@ function createFeatures(earthquakeData) {
 
 // define createmap function
 function createMap(earthquakes) {
-  // Define satelitemap and darkmap layers
+  // Define satelitemap, darkmap, and lightmap layers
   var satellitemap = L.tileLayer("https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}", {
     attribution: "Map data &copy; <a href=\"https://www.openstreetmap.org/\">OpenStreetMap</a> contributors, <a href=\"https://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA</a>, Imagery © <a href=\"https://www.mapbox.com/\">Mapbox</a>",
     maxZoom: 18,
@@ -71,22 +72,25 @@ function createMap(earthquakes) {
   // Define a baseMaps object to hold our base layers
   var baseMaps = {"Satellite Map": satellitemap, "Dark Map": darkmap, "Light Map": lightmap};
 
+  // level 2: add in plates
   // create tectonic plate layer
   var plateLayer = new L.LayerGroup();
+  // Add plates data as line to plate layer
+  d3.json(plateUrl, function(plateData) {
+    L.geoJson(plateData, {
+      color: "orange",
+      weight: 2
+    })
+    .addTo(plateLayer);
+  });
+
   // Create overlay object to hold our overlay layer
   var overlayMaps = {"Earthquakes": earthquakes, "Tectonic Plates": plateLayer};
-  // Create our map, giving it the streetmap and earthquakes layers to display on load
+  // Create our map, giving it the satellitemap, earthquake, and plate layers to display on load
   var myMap = L.map("map", {center: [35.09, -95.71], zoom: 3, layers: [satellitemap, earthquakes, plateLayer]});
-  // Add plates data as line to plate layer
-    d3.json(plateUrl, function(plateData) {
-      L.geoJson(plateData, {
-        color: "orange",
-        weight: 2
-      })
-      .addTo(plateLayer);
-  });
   // Create a layer control, Pass in baseMaps and overlayMaps, Add the layer control to the map
   L.control.layers(baseMaps, overlayMaps, {collapsed: false}).addTo(myMap);
+ 
   // Add legend
   var legend = L.control({position: 'bottomright'});
     legend.onAdd = function(myMap) {
